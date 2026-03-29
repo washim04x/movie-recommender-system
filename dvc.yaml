@@ -1,0 +1,40 @@
+stages:
+  process_data:
+    cmd: python ./src/data/process_data.py  ./data/raw/movies_metadata.csv
+    deps:
+      - ./src/data/process_data.py
+      - ./data/raw/movies_metadata.csv
+    params:
+      - data.raw_data_path
+      - data.raw_data_file
+      - data.processed_data_path
+      - data.processed_data_file
+  build_features:
+    cmd: python ./src/features/build_features.py ./data/processed/movies_metadata_processed.csv
+    deps:
+      - ./src/features/build_features.py
+      - ./data/processed/movies_metadata_processed.csv
+    params:
+      - data.processed_data_path
+      - data.processed_data_file
+      - data.features_data_file 
+  train_model:
+    cmd: python ./src/models/train_model.py ./data/processed/features_data.csv
+    deps:
+      - ./src/models/train_model.py
+      - ./data/processed/features_data.csv
+    params:
+      - data.features_data_file
+      - data.processed_data_path
+      - parameters.model.n_features
+      - parameters.model.n_grams
+  predict:
+    cmd: python ./src/models/predict_model.py ./data/processed/features_data.csv
+    deps:
+      - ./src/models/predict_model.py
+      - ./data/processed/features_data.csv
+    params:
+      - data.features_data_file
+      - data.processed_data_path
+      - predict.n_recommendations
+      - predict.movie_title

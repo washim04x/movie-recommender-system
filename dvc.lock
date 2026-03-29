@@ -1,0 +1,72 @@
+schema: '2.0'
+stages:
+  process_data:
+    cmd: python ./src/data/process_data.py  ./data/raw/movies_metadata.csv
+    deps:
+    - path: ./data/raw/movies_metadata.csv
+      hash: md5
+      md5: 42bf3ef8c208a01a4776955875978b1e
+      size: 34445126
+    - path: ./src/data/process_data.py
+      hash: md5
+      md5: 58a3b71a9b2e9fb247a898c41da8f2d7
+      size: 1864
+    params:
+      params.yaml:
+        data.processed_data_file: movies_metadata_processed.csv
+        data.processed_data_path: data/processed
+        data.raw_data_file: movies_metadata.csv
+        data.raw_data_path: data/raw
+  build_features:
+    cmd: python ./src/features/build_features.py 
+      ./data/processed/movies_metadata_processed.csv
+    deps:
+    - path: ./data/processed/movies_metadata_processed.csv
+      hash: md5
+      md5: f266c3e7673916a8b8577d95dedfdb1e
+      size: 22924765
+    - path: ./src/features/build_features.py
+      hash: md5
+      md5: 2e5ea3bd7139186d665f5c1a8016a5a8
+      size: 2645
+    params:
+      params.yaml:
+        data.features_data_file: features_data.csv
+        data.processed_data_file: movies_metadata_processed.csv
+        data.processed_data_path: data/processed
+  train_model:
+    cmd: python ./src/models/train_model.py ./data/processed/features_data.csv
+    deps:
+    - path: ./data/processed/features_data.csv
+      hash: md5
+      md5: e0f93b782c2f055a2908fec8ca90b832
+      size: 13554486
+    - path: ./src/models/train_model.py
+      hash: md5
+      md5: 8bfc38577420d771dac89c7692026d05
+      size: 2249
+    params:
+      params.yaml:
+        data.features_data_file: features_data.csv
+        data.processed_data_path: data/processed
+        parameters.model.n_features: 50000
+        parameters.model.n_grams:
+        - 1
+        - 2
+  predict:
+    cmd: python ./src/models/predict_model.py ./data/processed/features_data.csv
+    deps:
+    - path: ./data/processed/features_data.csv
+      hash: md5
+      md5: e0f93b782c2f055a2908fec8ca90b832
+      size: 13554486
+    - path: ./src/models/predict_model.py
+      hash: md5
+      md5: 753523ae79cdae9e35f9434f01d6a50b
+      size: 1489
+    params:
+      params.yaml:
+        data.features_data_file: features_data.csv
+        data.processed_data_path: data/processed
+        predict.movie_title: The Godfather
+        predict.n_recommendations: 10

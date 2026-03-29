@@ -1,0 +1,14 @@
+data:
+  raw_data_path: "data/raw"
+  raw_data_file: "movies_metadata.csv"
+  processed_data_path: "data/processed"
+  processed_data_file: "movies_metadata_processed.csv"
+  features_data_file: "features_data.csv"
+parameters:
+  model:
+    n_features: 50000
+    n_grams: [1,2]
+predict:
+  n_recommendations: 10
+  movie_title: "The Godfather"
+  
