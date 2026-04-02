@@ -13,13 +13,12 @@ def process_data(df):
     df.reset_index(drop=True, inplace=True)
 
     # Select only the relevant columns for the recommendation system
-    cols = ['original_title', 'overview', 'tagline', 'genres', 'vote_average', 'production_companies']
+    cols = ['original_title', 'overview', 'tagline', 'genres', 'vote_average', 'id']
     df = df[cols]
      
     # Fill missing values with empty strings or the mean for 'vote_average'
     df['overview'] = df['overview'].fillna(' ')
     df['tagline'] = df['tagline'].fillna(' ') 
-    df['production_companies'] = df['production_companies'].fillna(' ')
     df['vote_average'] = df['vote_average'].fillna(df['vote_average'].mean())
 
     return df

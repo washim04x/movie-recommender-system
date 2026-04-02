@@ -9,8 +9,8 @@ stages:
       size: 34445126
     - path: ./src/data/process_data.py
       hash: md5
-      md5: 58a3b71a9b2e9fb247a898c41da8f2d7
-      size: 1864
+      md5: 3d2fc2af3f09cc4c5da23cbea2ce7ff9
+      size: 1773
     params:
       params.yaml:
         data.processed_data_file: movies_metadata_processed.csv
@@ -23,12 +23,12 @@ stages:
     deps:
     - path: ./data/processed/movies_metadata_processed.csv
       hash: md5
-      md5: f266c3e7673916a8b8577d95dedfdb1e
-      size: 22924765
+      md5: 235c18521480691cc512400659c0eb25
+      size: 19905546
     - path: ./src/features/build_features.py
       hash: md5
-      md5: 2e5ea3bd7139186d665f5c1a8016a5a8
-      size: 2645
+      md5: 574935385c1e2f232ab5ccccd95febd6
+      size: 2593
     params:
       params.yaml:
         data.features_data_file: features_data.csv
@@ -39,8 +39,8 @@ stages:
     deps:
     - path: ./data/processed/features_data.csv
       hash: md5
-      md5: e0f93b782c2f055a2908fec8ca90b832
-      size: 13554486
+      md5: e4239b2d210cd4a2544f4ea2e37f2cfa
+      size: 12529104
     - path: ./src/models/train_model.py
       hash: md5
       md5: 8bfc38577420d771dac89c7692026d05
@@ -58,8 +58,8 @@ stages:
     deps:
     - path: ./data/processed/features_data.csv
       hash: md5
-      md5: e0f93b782c2f055a2908fec8ca90b832
-      size: 13554486
+      md5: e4239b2d210cd4a2544f4ea2e37f2cfa
+      size: 12529104
     - path: ./src/models/predict_model.py
       hash: md5
       md5: 753523ae79cdae9e35f9434f01d6a50b

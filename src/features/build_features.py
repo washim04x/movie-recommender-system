@@ -25,31 +25,11 @@ def preprocess_text(text):
     return ' '.join(tokens)
 
 
-
-def extract_names(value):
-        if pd.isna(value):
-            return ""
-        if isinstance(value, list):
-            return " ".join([item.get('name', '') for item in value if isinstance(item, dict)])
-        if isinstance(value, str):
-            value = value.strip()
-            if not value:
-                return ""
-            try:
-                parsed = ast.literal_eval(value)
-                if isinstance(parsed, list):
-                    return " ".join([item.get('name', '') for item in parsed if isinstance(item, dict)])
-                return value
-            except (ValueError, SyntaxError):
-                return value
-        return str(value)
-
 def build_features(df):
     # Extract names from 'genres' and 'production_companies' columns
-    df['genres'] = df['genres'].apply(extract_names)
-    df['production_companies'] = df['production_companies'].apply(extract_names)
-    df['combined_features'] = df['overview'] + ' ' + df['tagline'] + ' ' + df['genres'] + ' ' + df['production_companies']
-    df=df[['original_title', 'combined_features', 'vote_average']]
+    df['genres'] = df['genres'].apply(lambda x: ' '.join([i['name'] for i in eval(x)]) if pd.notnull(x) else '')
+    df['combined_features'] = df['overview'] + ' ' + df['tagline'] + ' ' + df['genres']
+    df=df[['original_title', 'combined_features', 'vote_average','id']]
     df['combined_features'] = df['combined_features'].apply(preprocess_text)
     df['combined_features'] = df['combined_features'].str.strip()
     df = df[df['combined_features'] != '']
