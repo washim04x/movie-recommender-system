@@ -5,7 +5,7 @@ import os
 
 dagshub_key = os.getenv("DAGSHUB_MOVIE")
 if not dagshub_key:
-    raise ValueError("Dagshub_movie environment variable not set")
+    raise ValueError("DAGSHUB_MOVIE environment variable not set")
 
 os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_key
 os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_key
