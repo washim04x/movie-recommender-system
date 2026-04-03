@@ -30,6 +30,7 @@ jobs:
       - name: Configure DVC Google Drive Service Account
         env:
           GDRIVE_CREDENTIALS_DATA: ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
+          GDRIVE_REMOTE_URL: ${{ secrets.GDRIVE_REMOTE_URL }}
         run: |
           set -euo pipefail
           echo "Setting up Google Drive Service Account..."
@@ -53,6 +54,11 @@ jobs:
           dvc remote modify --local --unset myremote gdrive_client_secret || true
           dvc remote modify --local myremote gdrive_use_service_account true
           dvc remote modify --local myremote gdrive_service_account_json_file_path gdrive-credentials.json
+
+          if [ -n "${GDRIVE_REMOTE_URL:-}" ]; then
+            dvc remote modify --local myremote url "$GDRIVE_REMOTE_URL"
+            echo "Using CI override remote URL"
+          fi
 
           echo "Service Account credentials configured"
 
@@ -99,7 +105,7 @@ jobs:
               raise SystemExit(
                   "Service account cannot access the configured DVC Google Drive remote. "
                   f"Share folder/shared drive id {root_id} with {sa_email} "
-                  "or update .dvc/config to a folder the service account can read. "
+                  "or set secret GDRIVE_REMOTE_URL to a folder the service account can read. "
                   f"Original error: {exc}"
               )
 
