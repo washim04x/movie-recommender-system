@@ -75,7 +75,7 @@ stages:
       size: 12529104
     - path: ./src/models/predict_model.py
       hash: md5
-      md5: bb280244ea99ff0a9cda975c67121953
+      md5: a844012f07e139623871b94b12284807
       size: 4344
     params:
       params.yaml:
