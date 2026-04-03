@@ -29,10 +29,27 @@ jobs:
         env :
           GDRIVE_CREDENTIALS_DATA : ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
         run : |
+          set -euo pipefail
           echo "Setting up Google Drive Service Account..."
-          echo "$GDRIVE_CREDENTIALS_DATA" > gdrive-credentials.json
-          dvc remote modify myremote gdrive_use_service_account true
-          dvc remote modify myremote gdrive_service_account_json_file_path gdrive-credentials.json
+          printf '%s' "$GDRIVE_CREDENTIALS_DATA" > gdrive-credentials.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          credentials_path = Path("gdrive-credentials.json")
+          credentials = json.loads(credentials_path.read_text())
+
+          if not isinstance(credentials, dict):
+              raise SystemExit("GDRIVE_CREDENTIALS_DATA must be a JSON object")
+
+          if credentials.get("type") not in (None, "service_account"):
+              raise SystemExit(f"Unexpected credentials type: {credentials.get('type')}")
+
+          credentials["type"] = "service_account"
+          credentials_path.write_text(json.dumps(credentials))
+          PY
+          dvc remote modify --local myremote gdrive_use_service_account true
+          dvc remote modify --local myremote gdrive_service_account_json_file_path gdrive-credentials.json
           echo "✓ Service Account credentials configured"
          
       - name : Pull data from DVC Google Drive
