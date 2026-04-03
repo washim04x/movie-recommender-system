@@ -3,7 +3,7 @@ from pathlib import Path
 import yaml
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import pickle
+import joblib
 
 
 
@@ -20,15 +20,13 @@ def recommend_movies(movie_title, df, tfidf_matrix, indices, n=10):
     sim_idx = sim_scores.argsort()[::-1][1:n+1]
     return df['original_title'].iloc[sim_idx]
 
-def save_model(model_dir, df ,tfidf_matrix, indices, tfidf):
-    with open(model_dir / 'tfidf_matrix.pkl', 'wb') as f:
-        pickle.dump(tfidf_matrix, f)
-    with open(model_dir / 'indices.pkl', 'wb') as f:
-        pickle.dump(indices, f)
-    with open(model_dir / 'tfidf.pkl', 'wb') as f:
-        pickle.dump(tfidf, f)
-    with open(model_dir / 'df.pkl', 'wb') as f:
-        pickle.dump(df, f)
+def save_model(model_dir, df ,tfidf_matrix, indices):
+    with open(model_dir / 'tfidf_matrix.joblib', 'wb') as f:
+        joblib.dump(tfidf_matrix, f)
+    with open(model_dir / 'indices.joblib', 'wb') as f:
+        joblib.dump(indices, f)
+    with open(model_dir / 'df.joblib', 'wb') as f:
+        joblib.dump(df, f)
 
 def main():
     curr_dir =Path(__file__)
@@ -57,7 +55,7 @@ def main():
 
     model_dir = parent_dir / 'models'
     model_dir.mkdir(exist_ok=True)
-    save_model(model_dir,df,tfidf_matrix, indices, tfidf)
+    save_model(model_dir,df,tfidf_matrix, indices)
 
     
 if __name__ == "__main__":

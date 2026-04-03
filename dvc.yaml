@@ -28,6 +28,11 @@ stages:
       - data.processed_data_path
       - parameters.model.n_features
       - parameters.model.n_grams
+    outs:
+      - ./models/tfidf_matrix.joblib
+      - ./models/indices.joblib 
+      - ./models/df.joblib
+    
   predict:
     cmd: python ./src/models/predict_model.py ./data/processed/features_data.csv
     deps:

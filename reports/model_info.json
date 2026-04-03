@@ -1,0 +1,9 @@
+{
+    "run_id": "aa1e845d3bce411da9331ac1ea6e92b8",
+    "model_path": "D:\\Desktop\\movie-recommender-system\\models",
+    "artifact_uris": {
+        "tfidf_matrix": "runs:/aa1e845d3bce411da9331ac1ea6e92b8/model_artifacts/tfidf_matrix.joblib",
+        "indices": "runs:/aa1e845d3bce411da9331ac1ea6e92b8/model_artifacts/indices.joblib",
+        "df": "runs:/aa1e845d3bce411da9331ac1ea6e92b8/model_artifacts/df.joblib"
+    }
+}

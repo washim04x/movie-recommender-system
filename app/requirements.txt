@@ -1,0 +1,7 @@
+joblib==1.5.3
+mlflow==3.10.1
+mlflow_skinny==3.10.1
+mlflow_tracing==3.10.1
+Requests==2.33.1
+scikit_learn==1.8.0
+streamlit==1.56.0

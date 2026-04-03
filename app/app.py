@@ -1,28 +1,139 @@
+import json
 import os
 from pathlib import Path
-import pickle
 import random
+import shutil
+import threading
+
+import joblib
+import mlflow
+import requests
 import streamlit as st
 from sklearn.metrics.pairwise import cosine_similarity
-import requests
 
 st.title("Movie Recommender System")
 
 # load models and data
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODELS_DIR = BASE_DIR / "models"
+REPORTS_DIR = BASE_DIR / "reports"
+
+# Lazy model loading: don't block app startup
+_df = None
+_indices = None
+_tfidf_matrix = None
+_load_lock = threading.Lock()
+_warmup_started = False
+_load_error = None
 
 
-def load_pickle(file_path):
-    with open(file_path, "rb") as file:
-        return pickle.load(file)
+def load_joblib(file_path):
+    return joblib.load(file_path)
 
 
-df = load_pickle(MODELS_DIR / "df.pkl")
-indices = load_pickle(MODELS_DIR / "indices.pkl")
-tfidf_matrix = load_pickle(MODELS_DIR / "tfidf_matrix.pkl")
+def load_model_info(file_path):
+    with open(file_path, "r") as file:
+        return json.load(file)
 
-top_movies = df.sort_values("vote_average", ascending=False).head(50)
+
+def configure_mlflow_tracking():
+    dagshub_key = os.getenv("Dagshub_movie")
+    if not dagshub_key:
+        raise ValueError("Dagshub_movie environment variable not set")
+
+    os.environ["MLFLOW_TRACKING_USERNAME"] = dagshub_key
+    os.environ["MLFLOW_TRACKING_PASSWORD"] = dagshub_key
+    mlflow.set_tracking_uri(
+        "https://dagshub.com/washim04x/movie-recommender-system.mlflow"
+    )
+
+
+def ensure_local_artifacts():
+    targets = {
+        "tfidf_matrix": MODELS_DIR / "tfidf_matrix.joblib",
+        "indices": MODELS_DIR / "indices.joblib",
+        "df": MODELS_DIR / "df.joblib",
+    }
+
+    missing = [name for name, path in targets.items() if not path.exists()]
+    if not missing:
+        return
+
+    model_info_path = REPORTS_DIR / "model_info.json"
+    model_info = load_model_info(model_info_path)
+    artifact_uris = model_info.get("artifact_uris", {})
+
+    configure_mlflow_tracking()
+
+    for name in missing:
+        artifact_uri = artifact_uris.get(name)
+        if not artifact_uri:
+            raise FileNotFoundError(
+                f"Missing artifact URI for '{name}' in {model_info_path}"
+            )
+
+        downloaded_path = mlflow.artifacts.download_artifacts(
+            artifact_uri=artifact_uri
+        )
+        target_path = targets[name]
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(downloaded_path, target_path)
+
+
+def _load_artifacts():
+    global _df, _indices, _tfidf_matrix, _load_error
+    try:
+        ensure_local_artifacts()
+        _df = load_joblib(MODELS_DIR / "df.joblib")
+        _indices = load_joblib(MODELS_DIR / "indices.joblib")
+        _tfidf_matrix = load_joblib(MODELS_DIR / "tfidf_matrix.joblib")
+    except Exception as e:
+        _load_error = str(e)
+        print(f"[warmup] Artifact loading failed: {e}")
+
+
+def _ensure_artifacts_loaded():
+    global _df, _indices, _tfidf_matrix, _load_error
+    if _df is not None and _indices is not None and _tfidf_matrix is not None:
+        return
+    if _load_error is not None:
+        return
+
+    with _load_lock:
+        if _df is None or _indices is None or _tfidf_matrix is None:
+            _load_artifacts()
+
+
+def _warmup_async():
+    global _warmup_started
+    if _warmup_started:
+        return
+    _warmup_started = True
+
+    def _bg():
+        try:
+            _ensure_artifacts_loaded()
+            print("[warmup] Artifacts loaded successfully")
+        except Exception as e:
+            print(f"[warmup] Artifact warmup failed: {e}")
+
+    threading.Thread(target=_bg, daemon=True).start()
+
+
+# Start background warmup
+_warmup_async()
+
+top_movies = None
+
+
+def get_top_movies():
+    global top_movies
+    if top_movies is None:
+        _ensure_artifacts_loaded()
+        if _df is None:
+            return None
+        top_movies = _df.sort_values("vote_average", ascending=False).head(50)
+    return top_movies
 
 
 def enrich_movies_with_details(movies, include_relevance=False):
@@ -64,8 +175,12 @@ def enrich_movies_with_details(movies, include_relevance=False):
 
 
 def top_5_movies_data():
-    sample_size = min(5, len(top_movies))
-    sampled = top_movies.sample(
+    movies_df = get_top_movies()
+    if movies_df is None:
+        return None
+
+    sample_size = min(5, len(movies_df))
+    sampled = movies_df.sample(
         n=sample_size,
         random_state=random.randint(1, 99999),
     )
@@ -120,16 +235,20 @@ def fetch_movie_details(movie_id: int):
 
 
 # movie recommendation function
-def recommend_movies(movie_title, data, matrix, title_to_index, n=5):
-    title = movie_title.strip().replace(' ', '').lower()
-    if title not in title_to_index:
+def recommend_movies(movie_title, n=5):
+    _ensure_artifacts_loaded()
+    if _df is None or _tfidf_matrix is None or _indices is None:
         return None
 
-    idx = title_to_index[title]
-    sim_scores = cosine_similarity(matrix[idx], matrix).flatten()
+    title = movie_title.strip().replace(' ', '').lower()
+    if title not in _indices:
+        return None
+
+    idx = _indices[title]
+    sim_scores = cosine_similarity(_tfidf_matrix[idx], _tfidf_matrix).flatten()
     sim_idx = sim_scores.argsort()[::-1][1:n + 1]
     recommendations = (
-        data[["original_title", "id"]].iloc[sim_idx].values.tolist()
+        _df[["original_title", "id"]].iloc[sim_idx].values.tolist()
     )
     recommendation_movies = [
         {"title": rec_title, "id": movie_id}
@@ -157,6 +276,17 @@ default_movies = top_5_movies_data()
 
 
 if st.button("Recommend"):
+    # Ensure artifacts are loaded before using them
+    _ensure_artifacts_loaded()
+
+    if _df is None or _load_error is not None:
+        st.warning(
+            "Models are still loading. Please wait a moment and try again..."
+        )
+        if _load_error:
+            st.error(f"Error loading artifacts: {_load_error}")
+        st.stop()
+
     selected_title = movie_title.strip()
 
     if not selected_title:
@@ -167,7 +297,7 @@ if st.button("Recommend"):
         st.stop()
 
     recommendations = recommend_movies(
-        selected_title, df, tfidf_matrix, indices, n=10
+        selected_title, n=10
     )
     if recommendations is None:
         st.info(
@@ -180,7 +310,4 @@ if st.button("Recommend"):
         print(f"Recommendations for '{selected_title}':")
         st.write("Recommended Movies:")
         render_movies(recommendations, show_relevance=False)
-
-
-
 

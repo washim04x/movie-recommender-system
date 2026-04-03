@@ -27,8 +27,8 @@ stages:
       size: 19905546
     - path: ./src/features/build_features.py
       hash: md5
-      md5: 574935385c1e2f232ab5ccccd95febd6
-      size: 2593
+      md5: 83f004dc71feeaf8facfe3aef6c2cf16
+      size: 1898
     params:
       params.yaml:
         data.features_data_file: features_data.csv
@@ -43,8 +43,8 @@ stages:
       size: 12529104
     - path: ./src/models/train_model.py
       hash: md5
-      md5: 8bfc38577420d771dac89c7692026d05
-      size: 2249
+      md5: b8da44aeee27a2365ecb2308282e57ba
+      size: 2161
     params:
       params.yaml:
         data.features_data_file: features_data.csv
@@ -53,6 +53,19 @@ stages:
         parameters.model.n_grams:
         - 1
         - 2
+    outs:
+    - path: ./models/df.joblib
+      hash: md5
+      md5: 996327535ad579bdf9fd81e4deeb0ab9
+      size: 13800070
+    - path: ./models/indices.joblib
+      hash: md5
+      md5: 7a0c6b95d1268be40a185eb320c8380f
+      size: 2299113
+    - path: ./models/tfidf_matrix.joblib
+      hash: md5
+      md5: 73479c57c719a23f2783df34119c3177
+      size: 20722939
   predict:
     cmd: python ./src/models/predict_model.py ./data/processed/features_data.csv
     deps:
@@ -62,8 +75,8 @@ stages:
       size: 12529104
     - path: ./src/models/predict_model.py
       hash: md5
-      md5: 753523ae79cdae9e35f9434f01d6a50b
-      size: 1489
+      md5: bb280244ea99ff0a9cda975c67121953
+      size: 4344
     params:
       params.yaml:
         data.features_data_file: features_data.csv
