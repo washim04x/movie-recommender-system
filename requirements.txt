@@ -11,4 +11,5 @@ missingno
 PyYAML
 dvc
 dvc-gdrive
+nltk
 
