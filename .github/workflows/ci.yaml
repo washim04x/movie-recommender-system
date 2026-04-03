@@ -27,87 +27,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Configure DVC Google Drive Service Account (CI only)
-        env:
-          GDRIVE_CREDENTIALS_DATA: ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
-        run: |
-          set -euo pipefail
-          echo "Setting up Google Drive Service Account for CI..."
-
-          # Accept either raw JSON or base64-encoded JSON in the secret.
-          if echo "$GDRIVE_CREDENTIALS_DATA" | python -c "import sys,json; json.load(sys.stdin)" >/dev/null 2>&1; then
-            printf '%s' "$GDRIVE_CREDENTIALS_DATA" > gdrive-credentials.json
-          else
-            printf '%s' "$GDRIVE_CREDENTIALS_DATA" | base64 --decode > gdrive-credentials.json
-          fi
-
-          python - <<'PY'
-          import json
-          with open("gdrive-credentials.json", "r", encoding="utf-8") as f:
-              data = json.load(f)
-          if data.get("type") != "service_account":
-              raise SystemExit("GDRIVE_CREDENTIALS_DATA must be a Google Service Account JSON (type=service_account)")
-          print("Validated service account credentials JSON.")
-          PY
-
-          # Keep OAuth settings for local dev; use service account only in CI local config.
-          dvc remote modify --local --unset myremote gdrive_client_id || true
-          dvc remote modify --local --unset myremote gdrive_client_secret || true
-          dvc remote modify --local myremote gdrive_use_service_account true
-          dvc remote modify --local myremote gdrive_service_account_json_file_path gdrive-credentials.json
-
-          echo "Service Account credentials configured for CI"
-
-      - name: Validate Google Drive remote access
-        run: |
-          set -euo pipefail
-          REMOTE_URL="$(dvc remote list | awk '$1=="myremote" {print $2; exit}')"
-          if [ -z "$REMOTE_URL" ]; then
-            echo "Could not resolve DVC remote URL for myremote"
-            exit 1
-          fi
-
-          ROOT_ID="${REMOTE_URL#gdrive://}"
-          if [ -z "$ROOT_ID" ] || [ "$ROOT_ID" = "$REMOTE_URL" ]; then
-            echo "DVC remote URL is not a valid gdrive:// URL: $REMOTE_URL"
-            exit 1
-          fi
-
-          export ROOT_ID
-          python - <<'PY'
-          import json
-          import os
-          from google.oauth2 import service_account
-          from googleapiclient.discovery import build
-
-          root_id = os.environ["ROOT_ID"]
-          with open("gdrive-credentials.json", "r", encoding="utf-8") as f:
-              info = json.load(f)
-
-          sa_email = info.get("client_email", "<missing client_email>")
-          creds = service_account.Credentials.from_service_account_info(
-              info,
-              scopes=["https://www.googleapis.com/auth/drive.readonly"],
-          )
-          service = build("drive", "v3", credentials=creds, cache_discovery=False)
-
-          try:
-              meta = service.files().get(
-                  fileId=root_id,
-                  fields="id,name,mimeType,driveId",
-                  supportsAllDrives=True,
-              ).execute()
-          except Exception as exc:
-              raise SystemExit(
-                  "Service account cannot access the DVC Google Drive remote. "
-                  f"Share folder/shared drive id {root_id} with {sa_email} "
-                    "and ensure the configured DVC gdrive://<folder_id> is correct. "
-                  f"Original error: {exc}"
-              )
-
-          print(f"Remote access OK: {meta.get('id')} ({meta.get('name', '')})")
-          PY
-
+      - name : Configure DVC Google Drive Service Account
+        env :
+          GDRIVE_CREDENTIALS_DATA : ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
+        run : |
+          echo "Setting up Google Drive Service Account..."
+          echo "$GDRIVE_CREDENTIALS_DATA" > gdrive-credentials.json
+          dvc remote modify myremote gdrive_use_service_account true
+          dvc remote modify myremote gdrive_service_account_json_file_path gdrive-credentials.json
+          echo "✓ Service Account credentials configured"
+          
       - name: Pull data from DVC Google Drive
         run: |
           echo "Pulling data from Google Drive using Service Account..."
