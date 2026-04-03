@@ -9,4 +9,6 @@ matplotlib
 seaborn
 missingno
 PyYAML
+dvc
+dvc-gdrive
 
