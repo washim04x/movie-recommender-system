@@ -1,70 +1,93 @@
 name: CI
 
 on: push
+
 jobs:
   ci-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-      - name : Cache pip dependencies
-        uses : actions/cache@v3
-        with :
-          path : ~/.cache/pip
-          key : ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys : |
-            ${{ runner.os }}-pip-
+          python-version: "3.11"
 
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name : Configure DVC Google Drive Service Account
-        env :
-          GDRIVE_CREDENTIALS_DATA : ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
-        run : |
-          echo "Setting up Google Drive Service Account..."
-          echo "$GDRIVE_CREDENTIALS_DATA" > gdrive-credentials.json
-          dvc remote modify myremote gdrive_use_service_account true
-          dvc remote modify myremote gdrive_service_account_json_file_path gdrive-credentials.json
-          echo "✓ Service Account credentials configured"
-          
-      - name : Pull data from DVC Google Drive
-        run : |
+
+      - name: Configure DVC Google Drive Service Account (CI only)
+        env:
+          GDRIVE_CREDENTIALS_DATA: ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
+        run: |
+          set -euo pipefail
+          echo "Setting up Google Drive Service Account for CI..."
+
+          # Accept either raw JSON or base64-encoded JSON in the secret.
+          if echo "$GDRIVE_CREDENTIALS_DATA" | python -c "import sys,json; json.load(sys.stdin)" >/dev/null 2>&1; then
+            printf '%s' "$GDRIVE_CREDENTIALS_DATA" > gdrive-credentials.json
+          else
+            printf '%s' "$GDRIVE_CREDENTIALS_DATA" | base64 --decode > gdrive-credentials.json
+          fi
+
+          python - <<'PY'
+          import json
+          with open("gdrive-credentials.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+          if data.get("type") != "service_account":
+              raise SystemExit("GDRIVE_CREDENTIALS_DATA must be a Google Service Account JSON (type=service_account)")
+          print("Validated service account credentials JSON.")
+          PY
+
+          # Keep OAuth settings for local dev; use service account only in CI local config.
+          dvc remote modify --local --unset myremote gdrive_client_id || true
+          dvc remote modify --local --unset myremote gdrive_client_secret || true
+          dvc remote modify --local myremote gdrive_use_service_account true
+          dvc remote modify --local myremote gdrive_service_account_json_file_path gdrive-credentials.json
+          echo "Service Account credentials configured for CI"
+
+      - name: Pull data from DVC Google Drive
+        run: |
           echo "Pulling data from Google Drive using Service Account..."
           dvc pull -v
-          echo "✓ Data successfully pulled from Google Drive"
-          
-      - name : Run pipeline
-        env :
-          DAGSHUB_KEY : ${{ secrets.DAGSHUB_MOVIE }}
-        run : |
+          echo "Data successfully pulled from Google Drive"
+
+      - name: Run pipeline
+        env:
+          DAGSHUB_KEY: ${{ secrets.DAGSHUB_MOVIE }}
+        run: |
           dvc repro
-      - name : Docker login
-        if : success()
-        uses : docker/login-action@v2
-        with :
-          username : ${{ secrets.DOCKER_USERNAME }}
-          password : ${{ secrets.DOCKER_KEY }}
-      - name : Build Docker image
-        if : success()
-        run : |
-          docker build -t ${{secrets.DOCKER_USERNAME}}/movie-recommender-system:latest .
 
-      - name : Tag Docker image
-        if : success()
-        run : |
-          docker tag ${{secrets.DOCKER_USERNAME}}/movie-recommender-system:latest ${{secrets.DOCKER_USERNAME}}/movie-recommender-system:latest
+      - name: Docker login
+        if: success()
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_KEY }}
 
-      - name : Push Docker image to DockerHub
-        if : success()
-        run : |
-          docker push ${{secrets.DOCKER_USERNAME}}/movie-recommender-system:latest
+      - name: Build Docker image
+        if: success()
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/movie-recommender-system:latest .
+
+      - name: Push Docker image to DockerHub
+        if: success()
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/movie-recommender-system:latest
+
+      - name: Cleanup credentials file
+        if: always()
+        run: rm -f gdrive-credentials.json
 
       
