@@ -9,7 +9,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 # setup dagshub logging
-dagshub_key = os.getenv("Dagshub_movie")
+dagshub_key = os.getenv("DAGSHUB_MOVIE")
 if not dagshub_key:
     raise ValueError("Dagshub_movie environment variable not set")
 

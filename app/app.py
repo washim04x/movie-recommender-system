@@ -37,7 +37,7 @@ def load_model_info(file_path):
 
 
 def configure_mlflow_tracking():
-    dagshub_key = os.getenv("Dagshub_movie")
+    dagshub_key = os.getenv("DAGSHUB_MOVIE")
     if not dagshub_key:
         raise ValueError("Dagshub_movie environment variable not set")
 

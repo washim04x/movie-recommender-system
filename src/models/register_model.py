@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import os
 
-dagshub_key = os.getenv("Dagshub_movie")
+dagshub_key = os.getenv("DAGSHUB_MOVIE")
 if not dagshub_key:
     raise ValueError("Dagshub_movie environment variable not set")
 
