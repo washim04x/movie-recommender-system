@@ -20,7 +20,7 @@ jobs:
           restore-keys : |
             ${{ runner.os }}-pip-
 
-              
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -30,9 +30,9 @@ jobs:
           GDRIVE_CREDENTIALS_DATA : ${{ secrets.GDRIVE_CREDENTIALS_DATA }}
         run : |
           echo "Setting up Google Drive Service Account..."
-          echo "$GDRIVE_CREDENTIALS_DATA" > gdrive-credentials.json
+          echo "$GDRIVE_CREDENTIALS_DATA" > /tmp/gdrive-credentials.json
           dvc remote modify myremote gdrive_use_service_account true
-          dvc remote modify myremote gdrive_service_account_json_file_path gdrive-credentials.json
+          dvc remote modify myremote gdrive_service_account_json_file_path /tmp/gdrive-credentials.json
           echo "✓ Service Account credentials configured"
           
       - name : Pull data from DVC Google Drive
